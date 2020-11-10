@@ -1,3 +1,6 @@
+# Functions from 
+# https://stackoverflow.com/questions/35717353/split-violin-plot-with-ggplot2
+
 GeomSplitViolin <- ggproto("GeomSplitViolin", GeomViolin, 
                            draw_group = function(self, data, ..., draw_quantiles = NULL) {
                              data <- transform(data, xminv = x - violinwidth * (x - xmin), xmaxv = x + violinwidth * (xmax - x))
@@ -28,6 +31,7 @@ geom_split_violin <- function(mapping = NULL, data = NULL, stat = "ydensity", po
         position = position, show.legend = show.legend, inherit.aes = inherit.aes, 
         params = list(trim = trim, scale = scale, draw_quantiles = draw_quantiles, na.rm = na.rm, ...))
 }
+
 ##########################################################
 SELECT$pred_cancer_plco <- predict(rg_cancer_plco, newdata = SELECT, probability = TRUE,type = "response" )
 SELECT$pred_pv <- predict(rg_pv_plco, newdata = SELECT, probability = TRUE,type = "response" )
