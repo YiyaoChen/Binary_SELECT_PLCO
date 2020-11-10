@@ -19,4 +19,4 @@ Final_Models.R
 ## Step 3: Validate developed model on SELECT 
 bootstrap_report.Rmd
 
-calculation of weighted/unweighted calibration-in-the-large (CIL) and area under the receiver operating characteristics curve (AUC), and the respective 95% confidence intervals. The 95% confidence in serval for unweighted CIL is calculated as the paper, while for the weighted CIL and weighted or unweighted AUC are from the 95% percentiles confidence interval from bootstrapping.
+Calculation of weighted/unweighted calibration-in-the-large (CIL) and area under the receiver operating characteristics curve (AUC), and the respective 95% confidence intervals. The 95% confidence in serval for unweighted CIL is calculated as the paper, while for the weighted CIL and weighted or unweighted AUC are from the 95% percentiles confidence interval from bootstrapping.
