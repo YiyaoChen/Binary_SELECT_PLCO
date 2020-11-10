@@ -46,24 +46,18 @@ paste0('CIL (95% CI): ', round(CIL, 3), ' (', round(CIL - qnorm(0.975)*se_CIL, 3
 ```
 
 # AUC
-The 95% confidence interval for unweighted AUC follows Delong's method.
 ```{r, warning=FALSE, message = FALSE}
-library(pROC)
-t1 <- roc(SELECT_biopsy$PCa ~ SELECT_biopsy$pred_cancer_plco,direction="<", ret = 'coords', ci = TRUE)
-paste0('AUC: ', round(t1$auc[1], 3)*100,'%')
+SELECT_biopsy <-  SELECT_biopsy[order(SELECT_biopsy$pred_cancer_plco, decreasing=TRUE),]
+SELECT_biopsy$l1 <- SELECT_biopsy$PCa*SELECT_biopsy$pred_pv
+SELECT_biopsy$l2 <- (1-SELECT_biopsy$PCa)*SELECT_biopsy$pred_pv
+SELECT_biopsy$TPR_dt <- cumsum(SELECT_biopsy$l1)/sum(SELECT_biopsy$l1)
+SELECT_biopsy$FPR_dt <- cumsum(SELECT_biopsy$l2)/sum(SELECT_biopsy$l2)
+auc <- auc_boot(SELECT_biopsy$TPR_dt, SELECT_biopsy$FPR_dt)
+
+paste0('AUC: ', round(auc, 3)*100,'%')
 ```
 
 # Weighted $CIL_{pot}$ and $AUC_{pot}$
-```{r}
-auc_boot <- function(TPR, FPR){
-  # inputs already sorted, best scores first 
-  dFPR <- c(diff(FPR),0)
-  dTPR <- c(diff(TPR), 0)
-  AUC <- sum(TPR * dFPR) + sum(dTPR * dFPR)/2
-  return(AUC)
-}
-
-```
 
 ```{r}
 CIL_pot <- sum((SELECT_biopsy$pred_cancer_plco - SELECT_biopsy$PCa)* SELECT_biopsy$pred_pv)/ sum(SELECT_biopsy$pred_pv)
@@ -148,13 +142,6 @@ for (i in 1:100){
 }
 
 #write.csv(boot_result, '/Users/yiyaochen/Binary_SELECT_PLCO/boot100_Oct30.csv', row.names = FALSE)
-```
-
-```{r, include=FALSE}
-boot50_1 <- read.csv('/Users/yiyaochen/Binary_SELECT_PLCO/boot50_Oct30.csv')
-boot50_2 <- read.csv('/Users/yiyaochen/Binary_SELECT_PLCO/boot50_2_Oct30.csv')
-
-boot_result <- rbind(boot50_1, boot50_2)
 ```
 
 ```{r}
