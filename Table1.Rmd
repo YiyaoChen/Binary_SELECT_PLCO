@@ -1,0 +1,235 @@
+---
+title: "Table 1 and unweighted CIL and AUC"
+author: "Yiyao Chen"
+date: "10/30/2020"
+output:
+  bookdown::html_document2:
+    toc: true
+  html_document:
+    df_print: paged
+header-includes: \usepackage{natbib}
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(ggplot2)
+library(ggfortify)
+source('/Users/yiyaochen/Binary_SELECT_PLCO/Prepare_ReadIn.R')
+```
+
+```{r}
+nrow(SELECT)
+nrow(PLCO)
+```
+
+
+# Table 1
+```{r}
+PLCO$cohort <- rep(1, nrow(PLCO))
+SELECT$cohort<- rep(0, nrow(SELECT))
+
+Total <- rbind(PLCO[, c('PSA','DRE_binary', 'PSA4flag', 'Age', 'FH', 'Race', 'PB', 'biopsyflag', 'cohort')],
+               SELECT[, c('PSA','DRE_binary','PSA4flag', 'Age', 'FH', 'Race', 'PB','biopsyflag', 'cohort')])
+
+Total$agegroups <- Total$Age
+Total$agegroups[which(Total$Age <= 60)] <- 1
+Total$agegroups[which(Total$Age > 60 & Total$Age <= 70)] <- 2
+Total$agegroups[which(Total$Age > 70 & Total$Age<= 80)] <- 3
+Total$agegroups[which(Total$Age > 80 )] <- 4
+
+Total$agegroups3 <- Total$Age
+Total$agegroups3[which(Total$Age <= 65)] <- 1
+Total$agegroups3[which(Total$Age > 65 & Total$Age <= 75)] <- 2
+Total$agegroups3[which(Total$Age > 75 )] <- 3
+
+
+
+Total$PSAgroups <- Total$PSA
+Total$PSAgroups[which(Total$PSA <= 4)] <- 1
+Total$PSAgroups[which(Total$PSA > 4 & Total$PSA <= 10)] <- 2
+Total$PSAgroups[which(Total$PSA > 10)] <- 3
+
+Total$FH <- as.factor(Total$FH)
+Total$Race <- as.factor(Total$Race)
+Total$PB <- as.factor(Total$PB)
+```
+
+The following table compares the characteristics at first PSA test among PLCO and SELECT participants. P values from Wilcoxon tests for age and PSA or chi-squared tests for categorical risk factors are given. 
+```{r}
+t_age <- as.data.frame.matrix(table(Total$agegroups, Total$cohort))
+t_age$`0` <- paste0(t_age$`0`, ' (', round(t_age$`0`/sum(t_age$`0`)*100, 1), ')')
+t_age$`1` <- paste0(t_age$`1`, ' (', round(t_age$`1`/sum(t_age$`1`)*100, 1), ')')
+rownames(t_age) <- c('Age ≤ 60','Age in (60, 70]', 'Age in (70, 80]', 'Age > 80')
+t_age$p.value <- c(ifelse(wilcox.test(PLCO$Age, SELECT$Age)$p.value < 0.001, '< 0.001', round(wilcox.test(PLCO$Age, SELECT$Age)$p.value, 3)), NA, NA, NA)
+
+t_age3 <- as.data.frame.matrix(table(Total$agegroups3, Total$cohort))
+t_age3$`0` <- paste0(t_age3$`0`, ' (', round(t_age3$`0`/sum(t_age3$`0`)*100, 1), ')')
+t_age3$`1` <- paste0(t_age3$`1`, ' (', round(t_age3$`1`/sum(t_age3$`1`)*100, 1), ')')
+rownames(t_age3) <- c('Age ≤ 65','Age in (65, 75]',  'Age > 75')
+t_age3$p.value <- c(ifelse(wilcox.test(PLCO$Age, SELECT$Age)$p.value < 0.001, '< 0.001', round(wilcox.test(PLCO$Age, SELECT$Age)$p.value, 3)), NA, NA)
+
+
+t_psa <- as.data.frame.matrix(table(Total$PSAgroups, Total$cohort))
+t_psa$`0` <- paste0(t_psa$`0`, ' (', round(t_psa$`0`/sum(t_psa$`0`)*100, 1), ')')
+t_psa$`1` <- paste0(t_psa$`1`, ' (', round(t_psa$`1`/sum(t_psa$`1`)*100, 1), ')')
+rownames(t_psa) <- c('PSA ≤ 4','PSA in (4, 10]', 'PSA > 10')
+t_psa$p.value <- c(ifelse(wilcox.test(PLCO$PSA, SELECT$PSA)$p.value < 0.001, '< 0.001', round(wilcox.test(PLCO$PSA, SELECT$PSA)$p.value, 3)), NA, NA)
+
+t2 <- as.data.frame.matrix(table(Total$FH, Total$cohort))
+t2$`0` <- paste0(t2$`0`, ' (', format(round(t2$`0`/sum(t2$`0`)*100, 1), nsmall = 1), ')')
+t2$`1` <- paste0(t2$`1`, ' (', round(t2$`1`/sum(t2$`1`)*100, 1), ')')
+rownames(t2) <- c('No family history','Has family history')
+t2$p.value <- c(ifelse(chisq.test(table(Total$FH, Total$cohort))$p.value < 0.001, '< 0.001', round(chisq.test(table(Total$FH, Total$cohort))$p.value, 3)), NA)
+                         
+t3 <- as.data.frame.matrix(table(Total$Race, Total$cohort))
+t3$`0` <- paste0(t3$`0`, ' (', round(t3$`0`/sum(t3$`0`)*100, 1), ')')
+t3$`1` <- paste0(t3$`1`, ' (', round(t3$`1`/sum(t3$`1`)*100, 1), ')')
+rownames(t3) <- c('No African ancestry','African ancestry')
+t3$p.value <- c(ifelse(chisq.test(table(Total$Race, Total$cohort))$p.value < 0.001, '< 0.001', round(chisq.test(table(Total$Race, Total$cohort))$p.value, 3)), NA)
+
+t <- as.data.frame.matrix(table(Total$PB, Total$cohort))
+t$`0` <- paste0(t$`0`, ' (', round(t$`0`/sum(t$`0`)*100, 1), ')')
+t$`1` <- paste0(t$`1`, ' (', round(t$`1`/sum(t$`1`)*100, 1), ')')
+rownames(t) <- c('No prior negative biopsy before enrollment','Has prior negative biopsy before enrollment')
+t$p.value <- c(ifelse(chisq.test(table(Total$PB, Total$cohort))$p.value < 0.001, '< 0.001', round(chisq.test(table(Total$PB, Total$cohort))$p.value, 3)), NA)
+
+t4 <- as.data.frame.matrix(table(Total$DRE_binary, Total$cohort))
+t4$`0` <- paste0(t4$`0`, ' (', round(t4$`0`/sum(t4$`0`)*100, 1), ')')
+t4$`1` <- paste0(t4$`1`, ' (', round(t4$`1`/sum(t4$`1`)*100, 1), ')')
+rownames(t4) <- c('DER = Normal','DRE = Abnormal')
+t4$p.value <- c(ifelse(chisq.test(table(Total$DRE_binary, Total$cohort))$p.value < 0.001, '< 0.001', round(chisq.test(table(Total$DRE_binary, Total$cohort))$p.value, 3)), NA)
+
+t5 <- as.data.frame.matrix(table(Total$PSA4flag, Total$cohort))
+t5$`0` <- paste0(t5$`0`, ' (', round(t5$`0`/sum(t5$`0`)*100, 1), ')')
+t5$`1` <- paste0(t5$`1`, ' (', round(t5$`1`/sum(t5$`1`)*100, 1), ')')
+rownames(t5) <- c('PSA <= 4 ng/ml','PSA > 4 ng/ml')
+t5$p.value <- c(ifelse(chisq.test(table(Total$PSA4flag, Total$cohort))$p.value < 0.001, '< 0.001', round(chisq.test(table(Total$PSA4flag, Total$cohort))$p.value, 3)), NA)
+
+t6 <- as.data.frame.matrix(table(Total$biopsyflag, Total$cohort))
+t6$`0` <- paste0(t6$`0`, ' (', round(t6$`0`/sum(t6$`0`)*100, 1), ')')
+t6$`1` <- paste0(t6$`1`, ' (', round(t6$`1`/sum(t6$`1`)*100, 1), ')')
+rownames(t6) <- c('Unverified','Verified')
+t6$p.value <- c(ifelse(chisq.test(table(Total$biopsyflag, Total$cohort))$p.value < 0.001, '< 0.001', round(chisq.test(table(Total$biopsyflag, Total$cohort))$p.value, 3)), NA)
+
+
+
+t <- rbind(t_age,t_age3, t_psa, t4, t5, t2, t3, t, t6)
+colnames(t) <- c(paste0('SELECT (Total = ', nrow(SELECT), ')'), paste0('PLCO (Total = ', nrow(PLCO), ')'), 'P value')
+options(knitr.kable.NA = '')
+kable(t, format = 'markdown')
+```
+
+
+# Distributions of PSA in SELECT and PLCO
+The following plot compares the distribution of PSA in PLCO and SELECT with x-axis shown in log-based-10 scale.
+```{r, fig.align = 'center', fig.width = 7, fig.height = 5, warning=FALSE}
+dt <- data.frame(PSA = c(PLCO$PSA, 
+                          SELECT$PSA),
+                 Group = c(rep('PLCO',nrow(PLCO)), rep('SELECT',nrow(SELECT))))
+
+p <- ggplot(dt, aes(x = PSA, fill = as.factor(Group), color = as.factor(Group)))+
+  geom_density(alpha = 0.5, size = 1)+
+  theme_bw()+
+  xlab('PSA')+
+  ylab('Density')+
+  scale_x_log10(breaks = c(0.01, 0.1, 1, 10, 100, 500, 1138), limits = c(0.01, 1138.5),
+                labels = c('0.01', '0.1', '1.0','10.0','100.0','500.0', '1138.0'))+
+  scale_fill_manual(values = c("steelblue","red2"),
+                    breaks=c("PLCO", "SELECT"),
+                    labels = c(paste0("PLCO (N = ", nrow(PLCO), ")"),
+                               paste0("SELECT (N = ", nrow(SELECT), ")")))+
+  scale_color_manual(values = c("steelblue","red4"),
+                    breaks=c("PLCO", "SELECT"),
+                    labels = c(paste0("PLCO (N = ", nrow(PLCO), ")"),
+                               paste0("SELECT (N = ", nrow(SELECT), ")")))+
+  theme(legend.position = c(0.15, 0.9),
+        legend.background = element_blank(),
+        legend.title = element_blank(),
+        legend.text = element_text(face="bold"),
+        axis.text.x = element_text(face="bold",size=10),
+        axis.text.y = element_text(face="bold",size=10),
+        axis.title.x = element_text(face="bold",size=10),
+        axis.title.y = element_text(face="bold",size=10))
+# ggsave(filename="/Users/yiyaochen/Binary_SELECT_PLCO/PLCO_SELECT_PSA_density.png", p, width = 7, height = 5, dpi = 500)
+p
+
+```
+
+# Models for cancer risk and being verified in PLCO built on PLCO
+```{r}
+# model for cancer risk
+rg_cancer_plco <- glm(formula = PCa ~ log2PSA +Race + FH+ PB+ log2PSA:DRE_binary,
+                      family = binomial(link = "logit"), 
+                      data = PLCO[which(PLCO$biopsyflag == 1), ])
+round(exp(cbind(coef(rg_cancer_plco), confint(rg_cancer_plco))), 4)
+
+# model for being verified in PLCO
+rg_pv_plco <- glm(formula = biopsyflag ~ log2PSA + PSA4flag + DRE_binary + Age + log2PSA:DRE_binary + 
+                    PSA4flag:DRE_binary, family = binomial(link = "logit"), data = PLCO)
+round(exp(cbind(coef(rg_pv_plco), confint(rg_pv_plco))), 4)
+BIC(rg_pv_plco)
+
+rg_pv_plco_no_interact <- glm(formula = biopsyflag ~ log2PSA + PSA4flag + DRE_binary + Age, family = binomial(link = "logit"), data = PLCO)
+round(exp(cbind(coef(rg_pv_plco_no_interact), confint(rg_pv_plco_no_interact ))), 4)
+BIC(rg_pv_plco_no_interact)
+```
+
+# Apply the developed models to SELECT
+```{r}
+#################################################
+SELECT$pred_cancer_plco <- predict(rg_cancer_plco, newdata = SELECT, probability = TRUE,type = "response" )
+SELECT$pred_pv <- predict(rg_pv_plco, newdata = SELECT, probability = TRUE,type = "response" )
+```
+
+
+# Unweigted statistics
+## CIL
+The 95% confidence interval of estimated unweighted CIL is $\widehat{CIL} \pm 1.96 se(\widehat{CIL)}$.
+```{r}
+SELECT_biopsy <- SELECT[which(SELECT$biopsyflag == 1), ]
+
+CIL <- sum((SELECT_biopsy$pred_cancer_plco - SELECT_biopsy$PCa))/nrow(SELECT_biopsy)
+se_CIL <- sqrt(sum((SELECT_biopsy$pred_cancer_plco - SELECT_biopsy$PCa)^2)/(nrow(SELECT_biopsy)^2) - CIL^2/nrow(SELECT_biopsy))
+
+paste0('CIL (95% CI): ', round(CIL, 3), ' (', round(CIL - qnorm(0.975)*se_CIL, 3), ',', round(CIL + qnorm(0.975)*se_CIL, 3), ')')
+```
+
+## AUC
+The 95% confidence interval for unweighted AUC follows Delong's method.
+```{r, warning=FALSE, message = FALSE}
+library(pROC)
+t1 <- roc(SELECT_biopsy$PCa ~ SELECT_biopsy$pred_cancer_plco,direction="<", ret = 'coords', ci = TRUE)
+paste0('AUC (95% CI (Delong)): ', round(t1$auc[1], 3)*100,'%', ' (', round(t1$ci[1], 3)*100,'%', ',', round(t1$ci[3], 3)*100,'%', ')')
+```
+
+# Weighted $CIL_{pot}$ and $AUC_{pot}$
+```{r, include=FALSE}
+auc_boot <- function(TPR, FPR){
+  # inputs already sorted, best scores first 
+  dFPR <- c(diff(FPR),0)
+  dTPR <- c(diff(TPR), 0)
+  AUC <- sum(TPR * dFPR) + sum(dTPR * dFPR)/2
+  return(AUC)
+}
+
+```
+
+```{r}
+CIL_pot <- sum((SELECT_biopsy$pred_cancer_plco - SELECT_biopsy$PCa)* SELECT_biopsy$pred_pv)/ sum(SELECT_biopsy$pred_pv)
+
+SELECT_biopsy <-  SELECT_biopsy[order(SELECT_biopsy$pred_cancer_plco, decreasing=TRUE),]
+SELECT_biopsy$l1 <- SELECT_biopsy$PCa*SELECT_biopsy$pred_pv
+SELECT_biopsy$l2 <- (1-SELECT_biopsy$PCa)*SELECT_biopsy$pred_pv
+SELECT_biopsy$TPR_dt <- cumsum(SELECT_biopsy$l1)/sum(SELECT_biopsy$l1)
+SELECT_biopsy$FPR_dt <- cumsum(SELECT_biopsy$l2)/sum(SELECT_biopsy$l2)
+auc_pot <- auc_boot(SELECT_biopsy$TPR_dt, SELECT_biopsy$FPR_dt)
+
+dt = data.frame(CIL = paste0(round(CIL_pot, 3)),
+                  AUC = c(paste0(round(auc_pot, 3)*100, '%')))
+  colnames(dt) <- c(paste0('CIL_pot in SELECT (N = ', nrow(SELECT_biopsy), ')'),
+                    paste0('AUC_pot in SELECT (N = ', nrow(SELECT_biopsy), ')'))
+  rownames(dt) <- c('Weighted')
+  kable(dt, format = 'markdown')
+
+    
+```
