@@ -1,0 +1,170 @@
+---
+title: "Bootstrap and weighted CIL and AUC"
+author: "Yiyao Chen"
+date: "10/30/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+source('/Users/yiyaochen/Binary_SELECT_PLCO/Prepare_ReadIn.R')
+```
+
+```{r}
+nrow(SELECT)
+nrow(PLCO)
+```
+
+# Models for cancer risk
+```{r}
+rg_cancer_plco <- glm(formula = PCa ~ log2PSA  + Race + FH + PB + log2PSA:DRE_binary, family = binomial(link = "logit"), data = PLCO[PLCO$biopsyflag == 1, ])
+rg_pv_plco <- glm(formula = biopsyflag ~ log2PSA + PSA4flag + DRE_binary + Age + log2PSA:DRE_binary + 
+                    PSA4flag:DRE_binary, family = binomial(link = "logit"), data = PLCO)
+
+SELECT$pred_cancer_plco <- predict(rg_cancer_plco, newdata = SELECT, probability = TRUE,type = "response" )
+SELECT$pred_pv <- predict(rg_pv_plco, newdata = SELECT, probability = TRUE,type = "response" )
+
+auc_boot <- function(TPR, FPR){
+  # inputs already sorted, best scores first 
+  dFPR <- c(diff(FPR),0)
+  dTPR <- c(diff(TPR), 0)
+  AUC <- sum(TPR * dFPR) + sum(dTPR * dFPR)/2
+  return(AUC)
+}
+```
+
+# CIL
+The 95% confidence interval of estimated unweighted CIL is $\widehat{CIL} \pm 1.96 se(\widehat{CIL)}$.
+```{r}
+SELECT_biopsy <- SELECT[which(SELECT$biopsyflag == 1), ]
+
+CIL <- sum((SELECT_biopsy$pred_cancer_plco - SELECT_biopsy$PCa))/nrow(SELECT_biopsy)
+
+se_CIL <- sqrt(sum((SELECT_biopsy$pred_cancer_plco - SELECT_biopsy$PCa)^2)/(nrow(SELECT_biopsy)^2) - CIL^2/nrow(SELECT_biopsy))
+
+paste0('CIL (95% CI): ', round(CIL, 3), ' (', round(CIL - qnorm(0.975)*se_CIL, 3), ',', round(CIL + qnorm(0.975)*se_CIL, 3), ')')
+```
+
+# AUC
+The 95% confidence interval for unweighted AUC follows Delong's method.
+```{r, warning=FALSE, message = FALSE}
+library(pROC)
+t1 <- roc(SELECT_biopsy$PCa ~ SELECT_biopsy$pred_cancer_plco,direction="<", ret = 'coords', ci = TRUE)
+paste0('AUC: ', round(t1$auc[1], 3)*100,'%')
+```
+
+# Weighted $CIL_{pot}$ and $AUC_{pot}$
+```{r}
+auc_boot <- function(TPR, FPR){
+  # inputs already sorted, best scores first 
+  dFPR <- c(diff(FPR),0)
+  dTPR <- c(diff(TPR), 0)
+  AUC <- sum(TPR * dFPR) + sum(dTPR * dFPR)/2
+  return(AUC)
+}
+
+```
+
+```{r}
+CIL_pot <- sum((SELECT_biopsy$pred_cancer_plco - SELECT_biopsy$PCa)* SELECT_biopsy$pred_pv)/ sum(SELECT_biopsy$pred_pv)
+
+SELECT_biopsy <-  SELECT_biopsy[order(SELECT_biopsy$pred_cancer_plco, decreasing=TRUE),]
+SELECT_biopsy$l1 <- SELECT_biopsy$PCa*SELECT_biopsy$pred_pv
+SELECT_biopsy$l2 <- (1-SELECT_biopsy$PCa)*SELECT_biopsy$pred_pv
+SELECT_biopsy$TPR_dt <- cumsum(SELECT_biopsy$l1)/sum(SELECT_biopsy$l1)
+SELECT_biopsy$FPR_dt <- cumsum(SELECT_biopsy$l2)/sum(SELECT_biopsy$l2)
+auc_pot <- auc_boot(SELECT_biopsy$TPR_dt, SELECT_biopsy$FPR_dt)
+
+dt = data.frame(CIL = c( CIL_pot),
+                  AUC = c( auc_pot))
+  colnames(dt) <- c(paste0('CIL in SELECT (N = ', nrow(SELECT_biopsy), ')'),
+                    paste0('AUC in SELECT (N = ', nrow(SELECT_biopsy), ')'))
+  rownames(dt) <- c('Weighted')
+  kable(dt, format = 'markdown')
+
+    
+```
+
+
+# Boostrapping 
+```{r, eval=FALSE}
+boot_result <- data.frame(AUC_verified = rep(NA, 100),
+                          CIL_verified = rep(NA, 100),
+                          AUC_verified_pot = rep(NA, 100),
+                          CIL_verified_pot = rep(NA, 100))
+
+
+set.seed(666)
+for (i in 1:100){
+  # Step 1: Draw a boot sample from SELECT and PLCO
+  SELECT_sample <- SELECT[sample(nrow(SELECT),nrow(SELECT),replace=TRUE),]
+  PLCO_sample <- PLCO[sample(nrow(PLCO),nrow(PLCO),replace=TRUE),]
+  
+  
+  #########
+  # Step 2: Refit model for being verified in PLCO
+  
+  rg <- glm(formula = biopsyflag ~ (log2PSA + PSA4flag+ DRE_binary + FH + PB + Race + Age)^2,family = binomial(link = "logit"),data = PLCO_sample)
+  refit_rg_pv<- step(rg, k = log(nrow(PLCO_sample)), trace = 0)
+
+  # Step 3: Apply the refitted model to SELECT_sample 
+  #        
+  SELECT_sample$pred_pv <- predict(refit_rg_pv, newdata = SELECT_sample, probability = TRUE,type = "response" )
+  
+  ############################################
+  # Step 4: Calculate the weighted and unweighted statistics
+  #
+  
+  SELECT_sample_biopsy <- SELECT_sample[which(SELECT_sample$biopsyflag == 1),]
+  
+  # Unweighted
+  SELECT_sample_biopsy <- SELECT_sample_biopsy[order(SELECT_sample_biopsy$pred_cancer_plco, decreasing=TRUE),]
+  SELECT_sample_biopsy$l1 <- SELECT_sample_biopsy$PCa
+  SELECT_sample_biopsy$l2 <- (1-SELECT_sample_biopsy$PCa)
+  SELECT_sample_biopsy$TPR_dt <- cumsum(SELECT_sample_biopsy$l1)/sum(SELECT_sample_biopsy$l1)
+  SELECT_sample_biopsy$FPR_dt <- cumsum(SELECT_sample_biopsy$l2)/sum(SELECT_sample_biopsy$l2)
+  
+  auc_v <- auc_boot(SELECT_sample_biopsy$TPR_dt, SELECT_sample_biopsy$FPR_dt)
+  CIL_v <- sum((SELECT_sample_biopsy$pred_cancer_plco - SELECT_sample_biopsy$PCa))/nrow(SELECT_sample_biopsy)
+  #-----------------
+  # Weighted
+  
+  CIL_pot <- sum((SELECT_sample_biopsy$pred_cancer_plco - SELECT_sample_biopsy$PCa)* SELECT_sample_biopsy$pred_pv)/ sum(SELECT_sample_biopsy$pred_pv)
+  
+  SELECT_sample_biopsy$l1 <- SELECT_sample_biopsy$PCa*SELECT_sample_biopsy$pred_pv
+  SELECT_sample_biopsy$l2 <- (1-SELECT_sample_biopsy$PCa)*SELECT_sample_biopsy$pred_pv
+  SELECT_sample_biopsy$TPR_dt <- cumsum(SELECT_sample_biopsy$l1)/sum(SELECT_sample_biopsy$l1)
+  SELECT_sample_biopsy$FPR_dt <- cumsum(SELECT_sample_biopsy$l2)/sum(SELECT_sample_biopsy$l2)
+  
+  auc_pot <- auc_boot(SELECT_sample_biopsy$TPR_dt, SELECT_sample_biopsy$FPR_dt)
+  
+  boot_result$AUC_verified[i] <- auc_v
+  boot_result$CIL_verified[i] <- CIL_v
+  boot_result$AUC_verified_pot[i] <- auc_pot
+  boot_result$CIL_verified_pot[i] <- CIL_pot
+  
+  
+  
+}
+
+#write.csv(boot_result, '/Users/yiyaochen/Binary_SELECT_PLCO/boot100_Oct30.csv', row.names = FALSE)
+```
+
+```{r, include=FALSE}
+boot50_1 <- read.csv('/Users/yiyaochen/Binary_SELECT_PLCO/boot50_Oct30.csv')
+boot50_2 <- read.csv('/Users/yiyaochen/Binary_SELECT_PLCO/boot50_2_Oct30.csv')
+
+boot_result <- rbind(boot50_1, boot50_2)
+```
+
+```{r}
+AUC_verified_pot_CI <- quantile(boot_result$AUC_verified_pot, c(0.025, 0.975))
+CIL_verified_pot_CI <- quantile(boot_result$CIL_verified_pot, c(0.025, 0.975))
+AUC_verified_CI <- quantile(boot_result$AUC_verified, c(0.025, 0.975))
+
+
+t <- rbind(AUC_verified_CI, AUC_verified_pot_CI, CIL_verified_pot_CI)
+rownames(t) <- c('AUC_verified_CI', 'AUC_verified_pot_CI', 'CIL_verified_pot_CI')
+colnames(t) <- c( paste0('Lower 95% CI limit (number of boostrap iterations = ', nrow(boot_result), ')'),paste0('Upper 95% CI limit (number of boostrap iterations = ', nrow(boot_result), ')'))
+kable(t, format = 'markdown')
+```
