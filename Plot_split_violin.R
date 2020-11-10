@@ -1,6 +1,9 @@
 # Functions from 
 # https://stackoverflow.com/questions/35717353/split-violin-plot-with-ggplot2
 
+library(gridExtra)
+library(ggplot2)
+
 GeomSplitViolin <- ggproto("GeomSplitViolin", GeomViolin, 
                            draw_group = function(self, data, ..., draw_quantiles = NULL) {
                              data <- transform(data, xminv = x - violinwidth * (x - xmin), xmaxv = x + violinwidth * (xmax - x))
@@ -280,9 +283,6 @@ violin_p_Age75 <- violin_p_Age75 + facet_wrap(~ label)+
   annotate(geom="text", x=0.61, y=0.00045,size = 4,label=paste0(nrow(SELECT_biopsy[which(SELECT_biopsy$Age75 == 0), ])))
 
 
-
-library(gridExtra)
-
 p <- grid.arrange(violin_p_PSA4flag, violin_p_DRE,
                   violin_p_PB, violin_p_FH,
                   violin_p_Age75, violin_p_Race, ncol=2)
@@ -309,11 +309,11 @@ violin_p <-   ggplot(plotdt , aes(x , y, group=m, fill = as.factor(m))) +
         axis.title.x = element_text(face="bold",size=14),
         axis.title.y = element_text(face="bold",size=14))+
       facet_wrap(~ label, ncol = 2, scales = 'free')
-ggsave(filename="/Users/yiyaochen/Binary_SELECT_PLCO/Weights_CIL_no_interact_2.png", violin_p, width = 8, height = 10.2, dpi = 500)
+ggsave(filename="/Users/yiyaochen/Binary_SELECT_PLCO/Weights_CIL_1.png", violin_p, width = 8, height = 10.2, dpi = 500)
 
-  
+# To create the axis  
 plotdt$l <-  factor(plotdt$l, levels = c( 'No', 'Yes'))
-box_p<-   ggplot(plotdt , aes(l, y, group=m, fill = as.factor(m))) +
+violin_p<-   ggplot(plotdt , aes(l, y, group=m, fill = as.factor(m))) +
     geom_boxplot()+ 
     scale_y_continuous(limits = c(0, 0.0009), breaks = c(0, 0.00025,0.0005, 0.00075, 0.0009))+
     theme_bw() +
@@ -334,6 +334,6 @@ box_p<-   ggplot(plotdt , aes(l, y, group=m, fill = as.factor(m))) +
           axis.title.x = element_text(face="bold",size=14),
           axis.title.y = element_text(face="bold",size=14))
   
-ggsave(filename="/Users/yiyaochen/Binary_SELECT_PLCO/box_plot_weights_by_subgroup.png", box_p, width = 10, height = 6, dpi = 500)
+ggsave(filename="/Users/yiyaochen/Binary_SELECT_PLCO/Weights_CIL_2.png", violin_p, width = 10, height = 6, dpi = 500)
 
                     
