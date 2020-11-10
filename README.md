@@ -9,12 +9,13 @@ SELECT_clean_2020_manually.R (for checking)
 
 PLCO_clean_2020.R
 
-Table_1.Rmd (characteristics Table 1)
 
 ## Step 2: Model development on PLCO
-Prepare_ReadIn.R (pre-processing cleaned data, run it before running Final_Models.R)
+Prepare_ReadIn.R (pre-processing cleaned data, run it before running Final_Model.R)
 
-Final_Models.R 
+Table_1.Rmd (characteristics Table 1)
+
+Final_Model.R 
 
 ## Step 3: Validate developed model on SELECT 
 bootstrap_report.Rmd
