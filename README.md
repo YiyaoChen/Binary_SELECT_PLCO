@@ -1,6 +1,6 @@
 # Binary_SELECT_PLCO
 
-A repository for the code used for the binary outcome causal inference analysis.
+A repository for the code used for the paper of "A causal inference approach to the external validation of prediction"."
 
 ## Step 1: Data cleaning
 SELECT_clean_2020_function.R
